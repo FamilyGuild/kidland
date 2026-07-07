@@ -33,6 +33,21 @@ Implementation has not started yet. The first MVP should run inside a minimal Fa
 - FastAPI,
 - dbzero.
 
+## Development
+
+Run tests from this directory:
+
+```bash
+./.venv/bin/python -m pytest
+```
+
+Install development dependencies first if needed:
+
+```bash
+python3.12 -m venv .venv
+./.venv/bin/python -m pip install -e ".[dev]"
+```
+
 ## Rule
 
 Keep this module's domain logic clean and independently understandable, but run the first MVP through the thin FamilyGuild foundation app.

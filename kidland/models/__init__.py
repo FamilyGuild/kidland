@@ -1,0 +1,1 @@
+"""KidLand domain model namespace."""

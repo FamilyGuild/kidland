@@ -29,6 +29,13 @@ Use this scope for KidLand implementation work, including FamQuests, quest appro
 - Modular architecture: `../fg-docs/docs/architecture/modular-platform.md`
 - Workspace architecture plan: `../fg-docs/docs/architecture/workspace-architecture-plan.md`
 
+## AI Planning Documents
+
+- Follow the workspace-wide AI planning and implementation handoff workflow in `../AGENTS.md`.
+- Store KidLand plans and implementation summaries under `../fg-docs/AI_docs/kidland/` using the scoped folder and naming rules from the root guide.
+- Treat `AI_docs/` files as non-canonical planning and handoff support. Promote lasting product, architecture, or task-workflow decisions into active English files under `../fg-docs/docs/` when they become source of truth.
+- Do not add `AI_docs/` files to `mkdocs.yml` navigation unless the developer explicitly asks.
+
 ## Development Defaults
 
 - Use Python, NiceGUI, FastAPI, and dbzero.
