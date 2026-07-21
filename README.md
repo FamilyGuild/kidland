@@ -31,7 +31,7 @@ Implementation has not started yet. The first MVP should run inside a minimal Fa
 - Python,
 - NiceGUI,
 - FastAPI,
-- dbzero.
+- `dbzero-pro>=0.6.0` with `import dbzero as db0` at runtime.
 
 ## Development
 
@@ -44,9 +44,14 @@ Run tests from this directory:
 Install development dependencies first if needed:
 
 ```bash
+cd ..
+bash scripts/login_aws_codeartifacts.sh
+cd kidland
 python3.12 -m venv .venv
 ./.venv/bin/python -m pip install -e ".[dev]"
 ```
+
+AWS credentials and the temporary pip token stay outside this repository. Run `bash ../scripts/logout_aws_codeartifacts.sh` from the workspace root when you want to restore the prior user pip index URL.
 
 ## Rule
 

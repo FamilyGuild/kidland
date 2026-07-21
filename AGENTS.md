@@ -39,6 +39,7 @@ Use this scope for KidLand implementation work, including FamQuests, quest appro
 ## Development Defaults
 
 - Use Python, NiceGUI, FastAPI, and dbzero.
+- Use `dbzero-pro>=0.6.0` as the distribution dependency while retaining `import dbzero as db0`.
 - Use full type annotations in Python.
 - Use tests for non-trivial domain logic once implementation begins.
 - Keep imports ordered as standard library, third-party, then local.
