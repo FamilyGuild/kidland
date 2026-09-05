@@ -51,7 +51,7 @@ python3.12 -m venv .venv
 ./.venv/bin/python -m pip install -e ".[dev]"
 ```
 
-AWS credentials and the temporary pip token stay outside this repository. Run `bash ../scripts/logout_aws_codeartifacts.sh` from the workspace root when you want to restore the prior user pip index URL.
+AWS credentials and the temporary pip token stay outside this repository. Run `bash ../scripts/logout_aws_codeartifacts.sh` from this subproject directory when you want to restore the prior user pip index URL.
 
 ## Rule
 
