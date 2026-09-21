@@ -1,6 +1,13 @@
 from types import ModuleType
 
-from kidland.models import KidProfile, LedgerEntry, LedgerSourceType
+from kidland.models import (
+    FamQuest,
+    FamStoreItem,
+    FamStorePurchase,
+    KidProfile,
+    LedgerEntry,
+    LedgerSourceType,
+)
 
 
 def test_package_is_importable(kidland_package: ModuleType) -> None:
@@ -11,6 +18,9 @@ def test_package_is_importable(kidland_package: ModuleType) -> None:
 def test_documented_model_package_exports_kidland_models() -> None:
     assert KidProfile.__module__ == "kidland.models.profiles"
     assert LedgerEntry.__module__ == "kidland.models.ledger"
+    assert FamQuest.__module__ == "kidland.models.quests"
+    assert FamStoreItem.__module__ == "kidland.models.store"
+    assert FamStorePurchase.__module__ == "kidland.models.store"
 
 
 def test_ledger_source_type_is_constrained_dbzero_enum() -> None:

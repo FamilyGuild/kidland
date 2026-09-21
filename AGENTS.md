@@ -33,7 +33,7 @@ Use this scope for KidLand implementation work, including FamQuests, quest appro
 
 - Follow the workspace-wide AI planning and implementation handoff workflow in `../AGENTS.md`.
 - Store KidLand plans and implementation summaries under `../fg-docs/AI_docs/kidland/` using the scoped folder and naming rules from the root guide.
-- Treat `AI_docs/` files as non-canonical planning and handoff support. Promote lasting product, architecture, or task-workflow decisions into active English files under `../fg-docs/docs/` when they become source of truth.
+- Treat `AI_docs/` files as non-canonical implementation support. Store cross-session working handoffs in `../.opencode/session-notes/`. Promote lasting product, architecture, or task-workflow decisions into active English files under `../fg-docs/docs/` when they become source of truth.
 - `AI_docs/` contains implementation plans and summaries only; official documentation under `../fg-docs/docs/` is the sole source of truth.
 - Do not add `AI_docs/` files to `mkdocs.yml` navigation unless the developer explicitly asks.
 
