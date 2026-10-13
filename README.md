@@ -33,10 +33,34 @@ Canonical module documentation is in `../fg-docs/docs/modules/kidland.md`.
 
 ## Implemented Domain Foundation
 
-KidLand currently provides child profiles, the auditable FamCoins ledger, and
-minimal persisted FamQuest and FamStore entities for multilingual text. The
-quest lifecycle, store purchase workflow, recurrence, UI, and core integration
-remain separate implementation steps.
+KidLand provides child profiles, the auditable FamCoins ledger, multilingual
+domain text, and the one-time FamQuest lifecycle. Parents can offer quests for
+child acceptance or publish quests for eligible children to pick directly.
+Declined offers remain in history and can be followed by a new offer. Only the
+responsible child can submit; parents review each attempt, with a required note
+on rejection. Resubmissions preserve earlier reviews, and approval atomically
+creates exactly one reward entry referencing the approved completion.
+
+`TrustedActorContext` contains only a server-resolved member UUID and role.
+Child actions resolve exactly one active linked KidProfile inside KidLand;
+parent-selected child targets are separate from the parent actor. The future
+Core adapter must construct this context from an active resolved member, never
+from authoritative client role claims. This boundary is not authentication.
+Standalone ledger profiles may remain unlinked, but cannot act on quests.
+Member linkage is established through `create_kid_profile`; do not mutate
+linkage directly without updating its lookup relationship.
+
+Quest, assignment-response, and completion-review statuses are separate enums
+because each has its own history. Delivery is determined by the lifecycle:
+offered quests await acceptance/reassignment, while published quests are
+available for pickup. `responsibility_source` is a read-only derived property:
+an accepted current offer means parent assignment; responsibility without an
+offer means child pickup. Neither fact needs a duplicate persisted enum field.
+
+Store purchases, recurrence, dashboards, activity infrastructure, and Core
+integration remain separate implementation steps. New occurrences require full
+lifecycle fields; existing title-only scaffold objects are not automatically
+migrated into actionable quests.
 
 FamQuest titles and descriptions, FamStore item titles, descriptions and
 fulfillment notes, and purchase title snapshots use `ML_String`. KidLand text

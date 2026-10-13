@@ -1,3 +1,5 @@
+"""Verify KidLand package identifiers, model exports, and ledger source values."""
+
 from types import ModuleType
 
 from kidland.models import (
@@ -11,11 +13,13 @@ from kidland.models import (
 
 
 def test_package_is_importable(kidland_package: ModuleType) -> None:
+    """Verify the imported package exposes the expected module identifiers."""
     assert kidland_package.PACKAGE_NAME == "kidland"
     assert kidland_package.MODULE_KEY == "kidland"
 
 
 def test_documented_model_package_exports_kidland_models() -> None:
+    """Verify exported models originate from their documented domain modules."""
     assert KidProfile.__module__ == "kidland.models.profiles"
     assert LedgerEntry.__module__ == "kidland.models.ledger"
     assert FamQuest.__module__ == "kidland.models.quests"
@@ -24,6 +28,7 @@ def test_documented_model_package_exports_kidland_models() -> None:
 
 
 def test_ledger_source_type_is_constrained_dbzero_enum() -> None:
+    """Verify supported ledger sources expose stable enum names and lookup."""
     assert str(LedgerSourceType.famquest_reward) == "famquest_reward"
     assert str(LedgerSourceType.famstore_purchase) == "famstore_purchase"
     assert str(LedgerSourceType.manual_adjustment) == "manual_adjustment"

@@ -12,3 +12,4 @@ class KidProfile:
 
     display_name: str
     active: bool = True
+    linked_member_uuid: str | None = None

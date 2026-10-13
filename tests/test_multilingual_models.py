@@ -1,10 +1,13 @@
+"""Verify multilingual domain text resolution, persistence, and purchase snapshots."""
+
+from datetime import date
 from pathlib import Path
 
 import dbzero as db0
 import pytest
 from dbzero_modelkit import LanguageCode, ML_String
 
-from kidland.models import FamQuest, FamStoreItem, FamStorePurchase
+from kidland.models import FamQuest, FamQuestStatus, FamStoreItem, FamStorePurchase
 from kidland.multilingual_helpers import (
     resolve_multilingual_text,
     snapshot_multilingual_text,
@@ -12,6 +15,7 @@ from kidland.multilingual_helpers import (
 
 
 def test_resolves_translation_or_primary_text() -> None:
+    """Verify requested translations resolve with primary-text fallback."""
     english_primary = ML_String(
         "Clean your room",
         LanguageCode.LEN,
@@ -32,10 +36,13 @@ def test_resolves_translation_or_primary_text() -> None:
 
 
 def test_allows_empty_optional_multilingual_text() -> None:
+    """Verify optional quest and store text can resolve to an empty string."""
     empty_description = ML_String("", LanguageCode.LEN)
     quest = FamQuest(
         title=ML_String("Feed the cat", LanguageCode.LEN),
         description=empty_description,
+        reward=5, occurrence_date=date(2026, 1, 1), created_by="parent-member",
+        status=FamQuestStatus.available,
     )
     item = FamStoreItem(
         title=ML_String("Choose dessert", LanguageCode.LEN),
@@ -48,6 +55,7 @@ def test_allows_empty_optional_multilingual_text() -> None:
 
 
 def test_multilingual_domain_text_persists_across_reopen(tmp_path: Path) -> None:
+    """Verify quest, store, and purchase texts retain translations after reopening."""
     quest = FamQuest(
         title=ML_String(
             "Walk the dog",
@@ -55,6 +63,8 @@ def test_multilingual_domain_text_persists_across_reopen(tmp_path: Path) -> None
             {LanguageCode.LPL: "Wyprowadź psa"},
         ),
         description=ML_String("Before dinner", LanguageCode.LEN),
+        reward=5, occurrence_date=date(2026, 1, 1), created_by="parent-member",
+        status=FamQuestStatus.available,
     )
     item = FamStoreItem(
         title=ML_String(
@@ -105,6 +115,7 @@ def test_multilingual_domain_text_persists_across_reopen(tmp_path: Path) -> None
 
 
 def test_purchase_title_snapshot_is_independent() -> None:
+    """Verify purchase snapshots retain original text independently of item edits."""
     item_title = ML_String(
         "Movie night",
         LanguageCode.LEN,
@@ -123,6 +134,7 @@ def test_purchase_title_snapshot_is_independent() -> None:
 
 
 def test_snapshot_requires_the_explicit_primary_language() -> None:
+    """Verify snapshot creation rejects a language other than the source primary."""
     title = ML_String(
         "Movie night",
         LanguageCode.LEN,

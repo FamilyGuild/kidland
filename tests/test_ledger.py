@@ -1,3 +1,5 @@
+"""Verify FamCoins ledger recording, derived balances, and adjustment validation."""
+
 from datetime import UTC, datetime
 
 import pytest
@@ -12,6 +14,7 @@ from kidland.queries import calculate_famcoins_balance, get_ledger_entries
 
 
 def test_create_kid_profile_starts_without_stored_balance() -> None:
+    """Verify new profiles have a zero derived balance without stored balance fields."""
     kid_profile = create_kid_profile("Alex")
 
     assert isinstance(kid_profile, KidProfile)
@@ -23,6 +26,7 @@ def test_create_kid_profile_starts_without_stored_balance() -> None:
 
 
 def test_record_positive_and_negative_ledger_entries(kid_profile: KidProfile) -> None:
+    """Verify earnings and spending retain metadata and contribute to the balance."""
     earned_at = datetime(2026, 7, 7, 9, 0, tzinfo=UTC)
     spent_at = datetime(2026, 7, 7, 10, 0, tzinfo=UTC)
 
@@ -54,6 +58,7 @@ def test_record_positive_and_negative_ledger_entries(kid_profile: KidProfile) ->
 
 
 def test_balance_is_derived_per_kid_profile(kid_profile: KidProfile) -> None:
+    """Verify each profile's balance includes only its own ledger entries."""
     other_profile = create_kid_profile("Riley")
 
     record_ledger_entry(
@@ -82,6 +87,7 @@ def test_balance_is_derived_per_kid_profile(kid_profile: KidProfile) -> None:
 def test_manual_adjustments_require_reason_and_create_ledger_entries(
     kid_profile: KidProfile,
 ) -> None:
+    """Verify signed manual adjustments are recorded and blank reasons rejected."""
     positive_adjustment = adjust_famcoins_balance(
         kid_profile,
         amount=12,
@@ -108,6 +114,7 @@ def test_manual_adjustments_require_reason_and_create_ledger_entries(
 
 
 def test_ledger_entries_reject_invalid_balance_changes(kid_profile: KidProfile) -> None:
+    """Verify zero amounts and blank reasons leave the ledger unchanged."""
     with pytest.raises(ValueError, match="amount"):
         record_ledger_entry(
             kid_profile,
@@ -128,6 +135,7 @@ def test_ledger_entries_reject_invalid_balance_changes(kid_profile: KidProfile) 
 
 
 def test_inactive_kid_profile_cannot_receive_ledger_entries(kid_profile: KidProfile) -> None:
+    """Verify inactive profiles cannot receive entries or change their balance."""
     kid_profile.active = False
 
     with pytest.raises(ValueError, match="active"):
