@@ -2,7 +2,35 @@
 
 import dbzero as db0
 
-from kidland.models import KidProfile, LedgerEntry
+from kidland.actors import TrustedActorContext
+from kidland.models import (
+    FamStoreItem,
+    FamStorePurchase,
+    KidProfile,
+    LedgerEntry,
+    PurchaseStatus,
+)
+
+
+def remaining_purchase_capacity(profile: KidProfile, item: FamStoreItem) -> int | None:
+    """Derive remaining child-specific capacity; None denotes unlimited purchases."""
+    if item.purchase_limit_per_child is None:
+        return None
+    used = sum(1 for purchase in db0.find(
+        FamStorePurchase, db0.as_tag(profile), db0.as_tag(item)
+    ) if purchase.status != PurchaseStatus.cancelled)
+    return max(0, item.purchase_limit_per_child - used)
+
+
+def get_available_famstore_items(actor: TrustedActorContext) -> list[FamStoreItem]:
+    """Return enabled, pinned, nonexhausted offers for the trusted child only."""
+    if actor.role != "child":
+        raise ValueError("actor must be a child")
+    profile = resolve_kid_profile(actor.member_uuid)
+    return [item for item in db0.find(
+        FamStoreItem, db0.as_tag(profile), "kidland.store.enabled"
+    ) if item.enabled and profile in item.pinned_profiles
+        and remaining_purchase_capacity(profile, item) != 0]
 
 
 def resolve_kid_profile(member_uuid: str) -> KidProfile:

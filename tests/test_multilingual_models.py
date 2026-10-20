@@ -1,6 +1,6 @@
 """Verify multilingual domain text resolution, persistence, and purchase snapshots."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import dbzero as db0
@@ -8,6 +8,7 @@ import pytest
 from dbzero_modelkit import LanguageCode, ML_String
 
 from kidland.models import FamQuest, FamQuestStatus, FamStoreItem, FamStorePurchase
+from kidland.commands import create_kid_profile
 from kidland.multilingual_helpers import (
     resolve_multilingual_text,
     snapshot_multilingual_text,
@@ -48,6 +49,7 @@ def test_allows_empty_optional_multilingual_text() -> None:
         title=ML_String("Choose dessert", LanguageCode.LEN),
         description=empty_description,
         fulfillment_note=ML_String("", LanguageCode.LEN),
+        cost=10, item_type="reward", title_primary_language=LanguageCode.LEN,
     )
 
     assert resolve_multilingual_text(quest.description, LanguageCode.LPL) == ""
@@ -73,6 +75,7 @@ def test_multilingual_domain_text_persists_across_reopen(tmp_path: Path) -> None
             {LanguageCode.LEN: "Extra game time"},
         ),
         description=ML_String("30 minut", LanguageCode.LPL),
+        cost=10, item_type="reward", title_primary_language=LanguageCode.LPL,
         fulfillment_note=ML_String(
             "Rodzic uruchamia minutnik",
             LanguageCode.LPL,
@@ -80,7 +83,9 @@ def test_multilingual_domain_text_persists_across_reopen(tmp_path: Path) -> None
         ),
     )
     purchase = FamStorePurchase(
-        title_snapshot=snapshot_multilingual_text(item.title, LanguageCode.LPL)
+        title_snapshot=snapshot_multilingual_text(item.title, LanguageCode.LPL),
+        kid_profile=create_kid_profile("Alex"), item=item, cost_snapshot=10,
+        purchased_at=datetime.now(UTC),
     )
     quest_uuid = db0.uuid(quest)
     item_uuid = db0.uuid(item)
@@ -122,7 +127,10 @@ def test_purchase_title_snapshot_is_independent() -> None:
         {LanguageCode.LPL: "Wieczór filmowy"},
     )
     snapshot = snapshot_multilingual_text(item_title, LanguageCode.LEN)
-    purchase = FamStorePurchase(title_snapshot=snapshot)
+    item = FamStoreItem(item_title, ML_String("", LanguageCode.LEN),
+                        ML_String("", LanguageCode.LEN), 10, "reward", LanguageCode.LEN)
+    purchase = FamStorePurchase(snapshot, create_kid_profile("Alex"), item, 10,
+                                 datetime.now(UTC))
 
     item_title.value = "Updated movie night"
 

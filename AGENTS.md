@@ -39,6 +39,7 @@ Use this scope for KidLand implementation work, including FamQuests, quest appro
 
 ## Development Defaults
 
+- Document every model field in the model's docstring using an `Attributes` section (or the language-equivalent documentation). Explain its domain meaning, relationships, defaults and optional values, and relevant units, constraints or lifecycle rules; do not merely repeat its name and type. Keep descriptions synchronized with model changes.
 - Use Python, NiceGUI, FastAPI, and dbzero.
 - Use `dbzero-pro>=0.6.0` as the distribution dependency while retaining `import dbzero as db0`.
 - Use full type annotations in Python.

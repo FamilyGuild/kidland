@@ -57,10 +57,26 @@ available for pickup. `responsibility_source` is a read-only derived property:
 an accepted current offer means parent assignment; responsibility without an
 offer means child pickup. Neither fact needs a duplicate persisted enum field.
 
-Store purchases, recurrence, dashboards, activity infrastructure, and Core
+FamStore supports parent-managed offers, per-child pins and purchase limits
+(`None` unlimited, `1` one-time, or a positive total limit). Purchased and fulfilled
+purchases consume capacity; cancelled purchases do not. Exhausted offers disappear
+only from the affected child's store. Repinning does not reset usage; editing a
+total limit retains historical usage. Prices are positive integer FamCoins.
+
+Trusted child purchases atomically create independent multilingual title and cost
+snapshots, one negative ledger entry and one structured parent-targeted activity
+event. Parents can fulfill an awaiting purchase or cancel it with exactly one full
+refund at the original price, including after profile deactivation. Terminal
+purchases cannot be settled again. Restoring capacity does not enable or repin an
+offer. Activity creation is not push delivery or acknowledgement of reading.
+
+Recurrence, dashboards, broader activity queries, and Core
 integration remain separate implementation steps. New occurrences require full
 lifecycle fields; existing title-only scaffold objects are not automatically
 migrated into actionable quests.
+
+Store constructors likewise require complete domain fields; title-only historical
+scaffolds are not migrated without a concrete data-preservation requirement.
 
 FamQuest titles and descriptions, FamStore item titles, descriptions and
 fulfillment notes, and purchase title snapshots use `ML_String`. KidLand text

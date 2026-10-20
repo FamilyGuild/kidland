@@ -33,7 +33,27 @@ class CompletionReviewStatus:
 @db0.memo(id="/familyguild/kidland/FamQuest")
 @dataclass
 class FamQuest:
-    """One independently dated responsibility and its current attempts."""
+    """One independently dated responsibility and its current attempts.
+
+    Attributes:
+        title: Nonblank multilingual occurrence title.
+        description: Multilingual task details; primary text may be empty.
+        reward: Positive FamCoins amount awarded on completion approval.
+        occurrence_date: Calendar date identifying this occurrence.
+        created_by: Creating parent's Core member UUID.
+        status: Current occurrence workflow state, maintained with its state tag.
+        due_date: Optional completion deadline; None means no explicit deadline.
+        eligible_profiles: Children allowed to pick a published occurrence;
+            initially empty for a directly offered occurrence.
+        responsible_profile: Child responsible after acceptance or pickup;
+            None until responsibility is established.
+        current_offer: Latest parent assignment offer, or None for an occurrence
+            without an offer. Earlier offers remain separate history objects.
+        current_completion: Latest submitted attempt, or None before submission.
+            Resubmission creates a new attempt rather than overwriting review.
+        responsibility_source: Derived property: parent_assignment for an
+            accepted offer, child_pickup otherwise, or None without a child.
+    """
 
     title: ML_String
     description: ML_String
@@ -63,7 +83,18 @@ class FamQuest:
 @db0.memo(id="/familyguild/kidland/FamQuestAssignment")
 @dataclass
 class FamQuestAssignment:
-    """An immutable-in-history offer with one child response."""
+    """A retained historical offer with one child response.
+
+    Attributes:
+        quest: Occurrence being offered; its current_offer identifies whether
+            this offer is still current.
+        target_profile: Child allowed to accept or decline this offer.
+        offered_by: Offering parent's Core member UUID.
+        offered_at: UTC timestamp when the offer was created.
+        response_status: Initially awaiting_response, then accepted or declined.
+        responded_at: UTC response timestamp, or None while awaiting response.
+        child_comment: Optional explanation supplied on decline; otherwise None.
+    """
 
     quest: FamQuest
     target_profile: KidProfile
@@ -77,7 +108,18 @@ class FamQuestAssignment:
 @db0.memo(id="/familyguild/kidland/FamQuestCompletion")
 @dataclass
 class FamQuestCompletion:
-    """One submitted attempt; resubmission never overwrites a review."""
+    """One submitted attempt; resubmission never overwrites a review.
+
+    Attributes:
+        quest: Occurrence whose work was submitted.
+        kid_profile: Responsible child who submitted this attempt.
+        submitted_at: UTC timestamp when the attempt was submitted.
+        review_status: Initially pending, then approved or rejected by a parent.
+        reviewed_by: Reviewing parent's Core member UUID, or None before review.
+        reviewed_at: UTC review timestamp, or None before review.
+        review_note: Parent explanation; required and nonblank on rejection,
+            optional on approval, and initially None.
+    """
 
     quest: FamQuest
     kid_profile: KidProfile
