@@ -70,8 +70,21 @@ refund at the original price, including after profile deactivation. Terminal
 purchases cannot be settled again. Restoring capacity does not enable or repin an
 offer. Activity creation is not push delivery or acknowledgement of reading.
 
-Recurrence, dashboards, broader activity queries, and Core
-integration remain separate implementation steps. New occurrences require full
+Daily, weekly and monthly recurrence rules now own sparse modelkit Calendars.
+Parents create rules and enable/disable them, then explicitly generate one due
+date at a time. Start/end bounds are inclusive; weekly dates follow the start
+weekday, and monthly dates preserve the start day, clamping to shorter month ends
+without drift (January 31, February 28/29, March 31). Generation atomically returns
+the existing occurrence or creates exactly one complete offered/published quest.
+Inactive rules/recipients block new dates, not retrieval of existing occurrences.
+Text and recipient collections are independent snapshots; creation requires the
+explicit primary language shared by title and description. Generated occurrences
+have no automatic deadline. No scheduler, catch-up or rule-template editing is
+included. Workflow enum metadata is materialized before the generation atomic
+block so a failed first generation can be retried safely with the current dbzero.
+
+Dashboards, broader activity queries, and Core integration remain separate
+implementation steps. New occurrences require full
 lifecycle fields; existing title-only scaffold objects are not automatically
 migrated into actionable quests.
 

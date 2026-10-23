@@ -7,7 +7,7 @@ from datetime import date, datetime
 from typing import Literal
 
 import dbzero as db0
-from dbzero_modelkit import ML_String
+from dbzero_modelkit import Calendar, LanguageCode, ML_String
 
 from kidland.models.profiles import KidProfile
 
@@ -28,6 +28,50 @@ class AssignmentResponse:
 @db0.enum(values=["pending", "approved", "rejected"])
 class CompletionReviewStatus:
     """Parent review decisions."""
+
+
+@db0.enum(values=["daily", "weekly", "monthly"], type_id="/familyguild/kidland/RecurrenceCadence")
+class RecurrenceCadence:
+    """Supported calendar-anchored recurrence schedules."""
+
+
+@db0.memo(id="/familyguild/kidland/FamQuestRecurrence")
+@dataclass
+class FamQuestRecurrence:
+    """A parent-owned template and sparse calendar of independent occurrences.
+
+    Attributes:
+        title: Nonblank multilingual template title, copied into occurrences.
+        description: Multilingual details; primary text may be empty.
+        reward: Positive integer FamCoins reward copied into each occurrence.
+        cadence: Daily, weekly from start weekday, or monthly from start day;
+            shorter months clamp the day without changing the original anchor.
+        start_date: Inclusive first due date and anchor for the schedule.
+        end_date: Inclusive final permitted date, or None for an unbounded rule.
+        created_by: UUID of the trusted parent who created the rule.
+        calendar: Owned date-to-FamQuest storage in the rule's state prefix,
+            with its base year set to the start year.
+        primary_language: Primary language of both template strings, explicitly
+            retained because modelkit does not expose their primary-language code.
+        target_profile: Child receiving parent offers; None for published rules.
+        eligible_profiles: Children allowed to pick published occurrences;
+            empty when target_profile selects parent-offered delivery.
+        active: Whether new occurrences may be created; initially True.
+            Deactivation never changes previously generated occurrences.
+    """
+
+    title: ML_String
+    description: ML_String
+    reward: int
+    cadence: RecurrenceCadence
+    start_date: date
+    end_date: date | None
+    created_by: str
+    calendar: Calendar
+    primary_language: LanguageCode
+    target_profile: KidProfile | None = None
+    eligible_profiles: list[KidProfile] = field(default_factory=list)
+    active: bool = True
 
 
 @db0.memo(id="/familyguild/kidland/FamQuest")
@@ -53,6 +97,7 @@ class FamQuest:
             Resubmission creates a new attempt rather than overwriting review.
         responsibility_source: Derived property: parent_assignment for an
             accepted offer, child_pickup otherwise, or None without a child.
+        recurrence: Generating rule, or None for a standalone one-time quest.
     """
 
     title: ML_String
@@ -66,6 +111,7 @@ class FamQuest:
     responsible_profile: KidProfile | None = None
     current_offer: FamQuestAssignment | None = None
     current_completion: FamQuestCompletion | None = None
+    recurrence: FamQuestRecurrence | None = None
 
     @property
     def responsibility_source(self) -> Literal["parent_assignment", "child_pickup"] | None:

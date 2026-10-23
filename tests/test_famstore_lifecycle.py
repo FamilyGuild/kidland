@@ -154,7 +154,7 @@ def test_invalid_price_or_limit(cost: int, limit: int) -> None:
 
 def test_purchase_graph_survives_reopen(tmp_path: Path) -> None:
     """Source relationships, snapshots, events and capacity survive reopening."""
-    profile, actor, item = setup_store(1)
+    _profile, actor, item = setup_store(1)
     purchase = c.purchase_famstore_item(actor, item)
     handle = db0.uuid(purchase)
     db0.close()

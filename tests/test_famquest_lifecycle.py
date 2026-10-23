@@ -1,10 +1,10 @@
 """Verify FamQuest lifecycle authorization, history, rewards, and atomic transitions."""
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 from threading import Barrier
-from typing import Callable
 
 import dbzero as db0
 import pytest
@@ -22,7 +22,13 @@ from kidland.commands import (
     reject_famquest_completion,
     submit_famquest_completion,
 )
-from kidland.models import FamQuest, FamQuestAssignment, FamQuestCompletion, KidProfile, LedgerEntry
+from kidland.models import (
+    FamQuest,
+    FamQuestAssignment,
+    FamQuestCompletion,
+    KidProfile,
+    LedgerEntry,
+)
 from kidland.queries import calculate_famcoins_balance, resolve_kid_profile
 
 Actors = tuple[TrustedActorContext, TrustedActorContext, KidProfile]
@@ -121,7 +127,7 @@ def test_wrong_actor_and_mapping_reject_without_mutation(actors: Actors) -> None
 
 def test_approval_failure_rolls_back(actors: Actors, monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify reward-recording failure rolls back review, workflow tags, and ledger."""
-    import kidland.commands as commands
+    from kidland import commands
 
     parent, child, profile = actors
     occurrence = quest(parent, profile)
@@ -216,7 +222,7 @@ def test_invalid_creation_leaves_no_occurrence(actors: Actors, reward: int) -> N
     parent, _, profile = actors
     with pytest.raises(ValueError):
         create_famquest(parent, ML_String("Read", LanguageCode.LEN),
-                        ML_String("", LanguageCode.LEN), reward, date.today(),
+                        ML_String("", LanguageCode.LEN), reward, date(2026, 1, 1),
                         eligible_profiles=[profile])
     assert not list(db0.find(FamQuest))
 

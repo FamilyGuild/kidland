@@ -7,8 +7,8 @@ import dbzero as db0
 import pytest
 from dbzero_modelkit import LanguageCode, ML_String
 
-from kidland.models import FamQuest, FamQuestStatus, FamStoreItem, FamStorePurchase
 from kidland.commands import create_kid_profile
+from kidland.models import FamQuest, FamQuestStatus, FamStoreItem, FamStorePurchase
 from kidland.multilingual_helpers import (
     resolve_multilingual_text,
     snapshot_multilingual_text,

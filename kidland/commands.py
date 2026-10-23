@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import UTC, date, datetime
 
 import dbzero as db0
-from dbzero_modelkit import LanguageCode, ML_String
+from dbzero_modelkit import Calendar, LanguageCode, ML_String
 
 from kidland.actors import TrustedActorContext, require_parent
 from kidland.models import (
@@ -15,6 +16,7 @@ from kidland.models import (
     FamQuest,
     FamQuestAssignment,
     FamQuestCompletion,
+    FamQuestRecurrence,
     FamQuestStatus,
     FamStoreItem,
     FamStorePurchase,
@@ -22,6 +24,7 @@ from kidland.models import (
     LedgerEntry,
     LedgerSourceType,
     PurchaseStatus,
+    RecurrenceCadence,
 )
 from kidland.multilingual_helpers import snapshot_multilingual_text
 from kidland.queries import (
@@ -115,8 +118,12 @@ def _write_ledger_entry(
     return ledger_entry
 
 
-def _validate_store_item(title: ML_String, cost: int, item_type: str,
-                         purchase_limit_per_child: int | None) -> None:
+def _validate_store_item(
+    title: ML_String,
+    cost: int,
+    item_type: str,
+    purchase_limit_per_child: int | None
+) -> None:
     """Reject invalid store prices, primary titles, types and total limits."""
     if not title.value.strip() or not item_type.strip():
         raise ValueError("title and item_type are required")
@@ -337,36 +344,154 @@ def create_famquest(
 ) -> FamQuest:
     """Create a one-time parent offer or a directly pickable published quest."""
     require_parent(actor)
+    with db0.atomic():
+        return _create_famquest(
+            actor, title, description, reward, occurrence_date,
+            due_date=due_date, target_profile=target_profile,
+            eligible_profiles=eligible_profiles,
+        )
+
+
+def _validate_quest_template(
+    title: ML_String,
+    reward: int,
+    target_profile: KidProfile | None,
+    eligible_profiles: list[KidProfile] | None,
+) -> None:
+    """Validate shared quest/rule template content and active delivery recipients."""
     if not title.value.strip() or reward <= 0:
         raise ValueError("title and positive reward are required")
     if target_profile is not None and eligible_profiles:
         raise ValueError("choose either a target or eligible profiles")
     if target_profile is None and not eligible_profiles:
         raise ValueError("published quests require eligible profiles")
+    profiles = [target_profile] if target_profile is not None else list(eligible_profiles or [])
+    if any(not profile.active for profile in profiles):
+        raise ValueError("quest profiles must be active")
+
+
+def _create_famquest(
+    actor: TrustedActorContext,
+    title: ML_String,
+    description: ML_String,
+    reward: int,
+    occurrence_date: date,
+    *,
+    due_date: date | None = None,
+    target_profile: KidProfile | None = None,
+    eligible_profiles: list[KidProfile] | None = None,
+    recurrence: FamQuestRecurrence | None = None,
+) -> FamQuest:
+    """Build a complete occurrence and initial offer within the caller's atomic block."""
+    _validate_quest_template(title, reward, target_profile, eligible_profiles)
+    status = (
+        FamQuestStatus.awaiting_assignment
+        if target_profile is not None else FamQuestStatus.available
+    )
+    quest = FamQuest(
+        title, description, reward, occurrence_date, actor.member_uuid,
+        status, due_date, list(eligible_profiles or []), recurrence=recurrence,
+    )
+    db0.tags(quest).add(f"kidland.quest.{status}")
+    for profile in eligible_profiles or []:
+        db0.tags(quest).add(db0.as_tag(profile))
+    if target_profile is not None:
+        _offer_famquest(actor, quest, target_profile)
+    return quest
+
+
+def create_famquest_recurrence(
+    actor: TrustedActorContext,
+    title: ML_String,
+    description: ML_String,
+    reward: int,
+    cadence: RecurrenceCadence,
+    start_date: date,
+    *,
+    primary_language: LanguageCode,
+    end_date: date | None = None,
+    target_profile: KidProfile | None = None,
+    eligible_profiles: list[KidProfile] | None = None,
+) -> FamQuestRecurrence:
+    """Create an active parent-owned rule, copying template text and recipients.
+
+    Require primary_language to identify the primary value of both text fields.
+    Reject invalid bounds, unsupported cadence, or invalid quest template data.
+    No occurrences are created until generation is explicitly requested.
+    """
+    require_parent(actor)
+    if cadence not in (RecurrenceCadence.daily, RecurrenceCadence.weekly, RecurrenceCadence.monthly):
+        raise ValueError("unsupported recurrence cadence")
+    if end_date is not None and end_date < start_date:
+        raise ValueError("end_date must not precede start_date")
     with db0.atomic():
-        profiles = (
-            [target_profile] if target_profile is not None else list(eligible_profiles or [])
+        _validate_quest_template(title, reward, target_profile, eligible_profiles)
+        return FamQuestRecurrence(
+            snapshot_multilingual_text(title, primary_language),
+            snapshot_multilingual_text(description, primary_language),
+            reward, cadence, start_date, end_date, actor.member_uuid,
+            Calendar(base_year=start_date.year), primary_language,
+            target_profile, list(eligible_profiles or []),
         )
-        if any(not profile.active for profile in profiles):
-            raise ValueError("quest profiles must be active")
-        status = (
-            FamQuestStatus.awaiting_assignment
-            if target_profile is not None else FamQuestStatus.available
+
+
+def set_famquest_recurrence_active(
+    actor: TrustedActorContext,
+    recurrence: FamQuestRecurrence,
+    active: bool,
+) -> None:
+    """Enable or disable future generation without altering existing occurrences."""
+    require_parent(actor)
+    with db0.atomic():
+        recurrence.active = active
+
+
+def generate_famquest_occurrence(
+    actor: TrustedActorContext,
+    recurrence: FamQuestRecurrence,
+    occurrence_date: date,
+) -> FamQuest:
+    """Return the date's existing occurrence or atomically create and store it.
+
+    Require a parent even for retrieval. New dates must match an active rule and
+    active recipients. Weekly/monthly dates remain anchored to the start date;
+    monthly generation clamps to shorter month ends without anchor drift.
+    """
+    require_parent(actor)
+    # Materialize workflow enum metadata before rollback can invalidate its cache.
+    FamQuestStatus.values()
+    AssignmentResponse.values()
+    with db0.atomic():
+        if occurrence_date < recurrence.start_date:
+            raise ValueError("date precedes recurrence start")
+        existing = recurrence.calendar.get(occurrence_date)
+        if existing is not None:
+            return existing
+        if not recurrence.active:
+            raise ValueError("recurrence must be active")
+        if recurrence.end_date is not None and occurrence_date > recurrence.end_date:
+            raise ValueError("date exceeds recurrence end")
+        if recurrence.cadence == RecurrenceCadence.weekly:
+            if (occurrence_date - recurrence.start_date).days % 7:
+                raise ValueError("date does not match weekly cadence")
+        elif recurrence.cadence == RecurrenceCadence.monthly:
+            day = min(recurrence.start_date.day, monthrange(occurrence_date.year, occurrence_date.month)[1])
+            if occurrence_date.day != day:
+                raise ValueError("date does not match monthly cadence")
+        quest = _create_famquest(
+            actor, snapshot_multilingual_text(recurrence.title, recurrence.primary_language),
+            snapshot_multilingual_text(recurrence.description, recurrence.primary_language), recurrence.reward,
+            occurrence_date, target_profile=recurrence.target_profile,
+            eligible_profiles=list(recurrence.eligible_profiles), recurrence=recurrence,
         )
-        quest = FamQuest(
-            title, description, reward, occurrence_date, actor.member_uuid,
-            status, due_date, list(eligible_profiles or []),
-        )
-        db0.tags(quest).add(f"kidland.quest.{status}")
-        for profile in eligible_profiles or []:
-            db0.tags(quest).add(db0.as_tag(profile))
-        if target_profile is not None:
-            _offer_famquest(actor, quest, target_profile)
+        recurrence.calendar.set(occurrence_date, quest)
         return quest
 
 
 def _offer_famquest(
-    actor: TrustedActorContext, quest: FamQuest, target_profile: KidProfile,
+    actor: TrustedActorContext,
+    quest: FamQuest,
+    target_profile: KidProfile,
 ) -> FamQuestAssignment:
     """Create and return an offer for an active target within the caller's atomic block.
 
@@ -393,7 +518,9 @@ def _offer_famquest(
 
 
 def offer_famquest(
-    actor: TrustedActorContext, quest: FamQuest, target_profile: KidProfile,
+    actor: TrustedActorContext,
+    quest: FamQuest,
+    target_profile: KidProfile,
 ) -> FamQuestAssignment:
     """Atomically create and return a parent's offer to the target profile.
 
@@ -407,8 +534,10 @@ def offer_famquest(
 
 
 def _respond_to_offer(
-    actor: TrustedActorContext, assignment: FamQuestAssignment,
-    response: AssignmentResponse, comment: str | None = None,
+    actor: TrustedActorContext,
+    assignment: FamQuestAssignment,
+    response: AssignmentResponse,
+    comment: str | None = None,
 ) -> None:
     """Atomically record a child's acceptance or decline of their current offer.
 
@@ -438,14 +567,17 @@ def _respond_to_offer(
 
 
 def accept_famquest_offer(
-    actor: TrustedActorContext, assignment: FamQuestAssignment,
+    actor: TrustedActorContext,
+    assignment: FamQuestAssignment,
 ) -> None:
     """Accept only the current offer addressed to the trusted child."""
     _respond_to_offer(actor, assignment, AssignmentResponse.accepted)
 
 
 def decline_famquest_offer(
-    actor: TrustedActorContext, assignment: FamQuestAssignment, comment: str | None = None,
+    actor: TrustedActorContext,
+    assignment: FamQuestAssignment,
+    comment: str | None = None,
 ) -> None:
     """Decline an offer without requiring a child explanation."""
     _respond_to_offer(actor, assignment, AssignmentResponse.declined, comment)
@@ -467,7 +599,8 @@ def pick_famquest(actor: TrustedActorContext, quest: FamQuest) -> None:
 
 
 def submit_famquest_completion(
-    actor: TrustedActorContext, quest: FamQuest,
+    actor: TrustedActorContext,
+    quest: FamQuest,
 ) -> FamQuestCompletion:
     """Create a fresh attempt from the responsible child's picked/returned quest."""
     with db0.atomic():
@@ -485,8 +618,10 @@ def submit_famquest_completion(
 
 
 def _review_completion(
-    actor: TrustedActorContext, completion: FamQuestCompletion,
-    status: CompletionReviewStatus, note: str | None,
+    actor: TrustedActorContext,
+    completion: FamQuestCompletion,
+    status: CompletionReviewStatus,
+    note: str | None,
 ) -> None:
     """Record a review of the current pending attempt in the caller's atomic block.
 
@@ -514,7 +649,9 @@ def _review_completion(
 
 
 def approve_famquest_completion(
-    actor: TrustedActorContext, completion: FamQuestCompletion, note: str | None = None,
+    actor: TrustedActorContext,
+    completion: FamQuestCompletion,
+    note: str | None = None,
 ) -> LedgerEntry:
     """Approve a current attempt and award one directly linked reward atomically."""
     require_parent(actor)
@@ -527,7 +664,9 @@ def approve_famquest_completion(
 
 
 def reject_famquest_completion(
-    actor: TrustedActorContext, completion: FamQuestCompletion, note: str,
+    actor: TrustedActorContext,
+    completion: FamQuestCompletion,
+    note: str,
 ) -> None:
     """Return the occurrence with a required explanation and no reward."""
     require_parent(actor)

@@ -9,22 +9,26 @@ from kidland.models.quests import (
     FamQuest,
     FamQuestAssignment,
     FamQuestCompletion,
+    FamQuestRecurrence,
     FamQuestStatus,
+    RecurrenceCadence,
 )
 from kidland.models.store import FamStoreItem, FamStorePurchase, PurchaseStatus
 
 __all__ = [
     "ActivityEvent",
-    "PurchaseStatus",
+    "AssignmentResponse",
+    "CompletionReviewStatus",
     "FamQuest",
     "FamQuestAssignment",
     "FamQuestCompletion",
+    "FamQuestRecurrence",
     "FamQuestStatus",
-    "AssignmentResponse",
-    "CompletionReviewStatus",
     "FamStoreItem",
     "FamStorePurchase",
     "KidProfile",
     "LedgerEntry",
     "LedgerSourceType",
+    "PurchaseStatus",
+    "RecurrenceCadence",
 ]
